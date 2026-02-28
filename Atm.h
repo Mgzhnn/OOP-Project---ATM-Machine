@@ -108,7 +108,7 @@ public:
     MultiUnilingual(const std::string& s, Bank* b, const std::vector<Bank*>& banks,
         int w1k, int w5k, int w10k, int w50k);
 
-    bool acceptsCard(Account* account) const override {
+    bool acceptsCard(Account* /*account*/) const override {
         return true;
     }
 
@@ -121,7 +121,7 @@ public:
     MultiBilingual(const std::string& s, Bank* b, const std::vector<Bank*>& banks,
         int w1k, int w5k, int w10k, int w50k);
 
-    bool acceptsCard(Account* account) const override {
+    bool acceptsCard(Account* /*account*/) const override {
         return true;
     }
 

@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">ATM OOP System Architecture</title>
+  <desc id="desc">Diagram showing Main, ATM hierarchy, banking entities, sessions, and transactions.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f0f7ff"/>
+      <stop offset="100%" stop-color="#e6fff2"/>
+    </linearGradient>
+    <linearGradient id="atmGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1d3557"/>
+      <stop offset="100%" stop-color="#2a9d8f"/>
+    </linearGradient>
+    <linearGradient id="domainGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f4a261"/>
+      <stop offset="100%" stop-color="#e76f51"/>
+    </linearGradient>
+    <linearGradient id="opsGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6a4c93"/>
+      <stop offset="100%" stop-color="#4361ee"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#355070"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="760" fill="url(#bg)"/>
+  <rect x="28" y="28" width="1144" height="704" rx="24" fill="#ffffff" stroke="#d9e4ef" stroke-width="2"/>
+
+  <text x="60" y="84" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="36" font-weight="700" fill="#0b132b">ATM OOP Project Architecture</text>
+  <text x="60" y="114" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="17" fill="#33415c">Interactive console flow from Main -> ATM sessions -> operations -> transaction history</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="160" width="220" height="90" rx="14" fill="#ffffff" stroke="#0ea5e9" stroke-width="2"/>
+    <text x="95" y="198" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#0b132b">main.cpp</text>
+    <text x="95" y="224" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#33415c">Loads file, creates system, starts CLI</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="370" y="150" width="410" height="130" rx="16" fill="url(#atmGrad)"/>
+    <text x="395" y="188" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="26" font-weight="700" fill="#ffffff">ATM Layer (Atm.*)</text>
+    <text x="395" y="214" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="15" fill="#f1faee">Single/Multi Bank, Uni/Bilingual, Fee rules, cash dispense</text>
+    <text x="395" y="237" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#dceaf7">Operations: deposit / withdraw / transfer / admin menu</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="850" y="150" width="280" height="130" rx="16" fill="url(#opsGrad)"/>
+    <text x="875" y="188" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#ffffff">Transaction.*</text>
+    <text x="875" y="212" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#e2e8f0">ID + timestamp + fee metadata</text>
+    <text x="875" y="234" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#e2e8f0">History print/export per ATM</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="370" y="340" width="300" height="140" rx="16" fill="url(#domainGrad)"/>
+    <text x="395" y="378" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#ffffff">Bank.*</text>
+    <text x="395" y="402" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#fff5ef">Owns accounts and authorization logic</text>
+    <text x="395" y="424" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#fff5ef">findAccByCard / findAccByNumber</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="700" y="340" width="430" height="140" rx="16" fill="#ffffff" stroke="#e76f51" stroke-width="2"/>
+    <text x="725" y="378" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#0b132b">Account.* + Card.*</text>
+    <text x="725" y="402" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#33415c">Balance mutation, account/card identity, admin flag</text>
+    <text x="725" y="424" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#33415c">Per-account transaction references</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="370" y="540" width="380" height="130" rx="16" fill="#ffffff" stroke="#5e60ce" stroke-width="2"/>
+    <text x="395" y="578" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#0b132b">Session.*</text>
+    <text x="395" y="602" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#33415c">Per-ATM session context + withdraw count</text>
+    <text x="395" y="624" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#33415c">Links account, ATM serial, and operations</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="790" y="540" width="340" height="130" rx="16" fill="#ffffff" stroke="#2a9d8f" stroke-width="2"/>
+    <text x="815" y="578" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="24" font-weight="700" fill="#0b132b">Utility.* / OurCin.*</text>
+    <text x="815" y="602" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#33415c">Snapshot view, ATM selection, input helpers</text>
+    <text x="815" y="624" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="14" fill="#33415c">Keeps console UX manageable</text>
+  </g>
+
+  <g stroke="#355070" stroke-width="3" fill="none" marker-end="url(#arrow)">
+    <path d="M290 205 L370 205"/>
+    <path d="M780 215 L850 215"/>
+    <path d="M560 280 L560 340"/>
+    <path d="M780 410 L700 410"/>
+    <path d="M560 480 L560 540"/>
+    <path d="M990 280 L990 540"/>
+  </g>
+
+  <text x="60" y="708" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="13" fill="#5c677d">
+    Data flow: input file -> domain objects -> ATM session operations -> transaction tracking -> admin history output
+  </text>
+</svg>

@@ -23,7 +23,6 @@ Session* Session::getSessionById(int id) {
 }
 
 Session::Session(Account *acc, bool admin, string atmSerial) : account(acc), isAdmin(admin), id(nextID++), atmSerial(std::move(atmSerial)) {
-    Session::registerSession(unique_ptr<Session>(this));
 }
 
 Session::~Session() {

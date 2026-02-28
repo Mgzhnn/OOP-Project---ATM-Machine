@@ -134,17 +134,15 @@ void Transaction::printHistory(const std::string& lang, const std::string& atmSe
         }
 
         if (!s->getAccount()) {
-            if (!s->getAccount()) {
-                if (lang == "en") {
-                    cout << "\nSession " << i << ":" << endl;
-                    cout << "Invalid or no card. Session recorded with no authenticated user." << endl << endl;
-                } else {
-                    cout << "\n세션 " << i << " :" << endl;
-                    cout << "유효하지 않은 카드입니다. 인증된 사용자가 없는 세션으로 기록됩니다." << endl << endl;
-                }
-                anySessionPrinted = true;
-                continue;
+            if (lang == "en") {
+                cout << "\nSession " << i << ":" << endl;
+                cout << "Invalid or no card. Session recorded with no authenticated user." << endl << endl;
+            } else {
+                cout << "\n세션 " << i << " :" << endl;
+                cout << "유효하지 않은 카드입니다. 인증된 사용자가 없는 세션으로 기록됩니다." << endl << endl;
             }
+            anySessionPrinted = true;
+            continue;
         }
 
         const Account* acc = s->getAccount();
@@ -178,58 +176,57 @@ void Transaction::printHistory(const std::string& lang, const std::string& atmSe
         bool hasNormal = false;
         for (const auto& accPair : sessionIt->second) {
             const std::string& fromAcc = accPair.first;
-            if (!fromAcc.empty() && fromAcc.find('-') != std::string::npos) {
-                hasNormal = true;
+            if (fromAcc.empty()) continue;
 
-                int num = 1;
-                for (auto* t : accPair.second) {
-                    cout << num++ << ". ";
-                    if (lang == "en") {
-                        switch (t->getType()) {
-                            case TransactionType::deposit:
-                                cout << "ID " << t->getID() << ": " << t->getAmount()
-                                     << " won deposited to " << t->getFromAccount();
-                                if (t->getFee()) cout << " (Fee: " << t->getFee() << ")";
-                                break;
-                            case TransactionType::withdraw:
-                                cout << "ID " << t->getID() << ": " << t->getAmount()
-                                     << " won withdrawn from " << t->getFromAccount()
-                                     << " (Fee: " << t->getFee() << ")";
-                                break;
-                            case TransactionType::transfer:
-                                cout << "ID " << t->getID() << ": " << t->getAmount()
-                                     << " won transferred from " << t->getFromAccount()
-                                     << " to " << t->getToAccount()
-                                     << " (Fee: " << t->getFee() << ")";
-                                break;
-                            default:
-                                cout << "Unknown transaction";
-                                break;
-                        }
-                    } else {
-                        switch (t->getType()) {
-                            case TransactionType::deposit:
-                                cout << t->getAmount() << "원 입금 (" << t->getFromAccount() << ")";
-                                if (t->getFee()) cout << " (수수료: " << t->getFee() << ")";
-                                break;
-                            case TransactionType::withdraw:
-                                cout << t->getAmount() << "원 출금 (" << t->getFromAccount()
-                                     << ") (수수료: " << t->getFee() << ")";
-                                break;
-                            case TransactionType::transfer:
-                                cout << t->getAmount() << "원 이체: " << t->getFromAccount()
-                                     << " → " << t->getToAccount()
-                                     << " (수수료: " << t->getFee() << ")";
-                                break;
-                            default:
-                                cout << "알 수 없는 거래";
-                                break;
-                        }
+            hasNormal = true;
+            int num = 1;
+            for (auto* t : accPair.second) {
+                cout << num++ << ". ";
+                if (lang == "en") {
+                    switch (t->getType()) {
+                        case TransactionType::deposit:
+                            cout << "ID " << t->getID() << ": " << t->getAmount()
+                                 << " won deposited to " << t->getFromAccount();
+                            if (t->getFee()) cout << " (Fee: " << t->getFee() << ")";
+                            break;
+                        case TransactionType::withdraw:
+                            cout << "ID " << t->getID() << ": " << t->getAmount()
+                                 << " won withdrawn from " << t->getFromAccount()
+                                 << " (Fee: " << t->getFee() << ")";
+                            break;
+                        case TransactionType::transfer:
+                            cout << "ID " << t->getID() << ": " << t->getAmount()
+                                 << " won transferred from " << t->getFromAccount()
+                                 << " to " << t->getToAccount()
+                                 << " (Fee: " << t->getFee() << ")";
+                            break;
+                        default:
+                            cout << "Unknown transaction";
+                            break;
                     }
-                    cout << endl;
+                } else {
+                    switch (t->getType()) {
+                        case TransactionType::deposit:
+                            cout << t->getAmount() << "원 입금 (" << t->getFromAccount() << ")";
+                            if (t->getFee()) cout << " (수수료: " << t->getFee() << ")";
+                            break;
+                        case TransactionType::withdraw:
+                            cout << t->getAmount() << "원 출금 (" << t->getFromAccount()
+                                 << ") (수수료: " << t->getFee() << ")";
+                            break;
+                        case TransactionType::transfer:
+                            cout << t->getAmount() << "원 이체: " << t->getFromAccount()
+                                 << " → " << t->getToAccount()
+                                 << " (수수료: " << t->getFee() << ")";
+                            break;
+                        default:
+                            cout << "알 수 없는 거래";
+                            break;
+                    }
                 }
                 cout << endl;
             }
+            cout << endl;
         }
 
         if (!hasNormal) {
@@ -333,7 +330,7 @@ void Transaction::outputToFile(const string &lang, const string& atmSerial) {
         bool isNormal = false;
         for (const auto& accPair : sessionIt->second) {
             const string& fromAcc = accPair.first;
-            if (fromAcc.empty() || fromAcc.find('-') == string::npos) continue;
+            if (fromAcc.empty()) continue;
 
             isNormal = true;
             int num = 1;

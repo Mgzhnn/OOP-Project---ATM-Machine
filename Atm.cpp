@@ -162,7 +162,7 @@ bool Atm::canDispense(unsigned long long amount) const {
     int totalBills = 0;
 
     for (int i = 0; i < 4; i++) {
-        const int denom = cashes[i];
+        const unsigned long long denom = static_cast<unsigned long long>(cashes[i]);
         if (remaining >= denom) {
             int canUse = static_cast<int>(remaining / denom);
             int use = min(canUse, tempCash[i]);
@@ -183,7 +183,6 @@ void Atm::dispenseCash(unsigned long long amount) {
 
     unsigned long long remaining = amount;
     vector<int> used(4, 0);
-    int totalBills = 0;
 
     for (int i = 0; i < 4; i++) {
         const int denom = cashes[i];
@@ -194,7 +193,6 @@ void Atm::dispenseCash(unsigned long long amount) {
 
         used[i] = count;
         remaining -= static_cast<unsigned long long>(count) * denom;
-        totalBills += count;
         if (remaining == 0) break;
     }
     if (remaining != 0) {
@@ -887,11 +885,27 @@ bool Atm::transfer()
 bool Atm::startSession() {
     if (isBilingual) {
         cout << "ATM에 오신 것을 환영합니다! / Welcome to the ATM!" << endl;
-        cout << "언어 선택 / Choose language (1. English 2. 한국어): ";
-        int lang;
-        cin >> lang;
-        language = (lang == 1) ? "en" : "ko";
-        OurCin::clearCin();
+        while (true) {
+            cout << "언어 선택 / Choose language (1. English 2. 한국어): ";
+            int lang = 0;
+            if (!(cin >> lang)) {
+                OurCin::clearCin();
+                print("invalid_input_1_2");
+                continue;
+            }
+            OurCin::clearCin();
+
+            if (lang == 1) {
+                language = "en";
+                break;
+            }
+            if (lang == 2) {
+                language = "ko";
+                break;
+            }
+
+            print("invalid_input_1_2");
+        }
     }
     else {
         print("welcome");
@@ -901,7 +915,7 @@ bool Atm::startSession() {
     string cardNum;
     getline(cin, cardNum);
 
-    new Session(nullptr, false, serialNumber);
+    Session::registerSession(make_unique<Session>(nullptr, false, serialNumber));
 
     Account* account = findAccountByCard(cardNum);
     if (!account) {

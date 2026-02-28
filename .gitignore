@@ -11,3 +11,6 @@ compile_commands.json
 
 # macOS
 .DS_Store
+
+# Local manual build output
+OOP_Project_bin

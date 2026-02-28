@@ -199,7 +199,7 @@ int main() {
             string input;
             if (!getline(cin, input)) {continue;}
             stringstream ss(input);
-            if (ss >> idx && idx >= 0 && idx < banks.size()) {
+            if (ss >> idx && idx >= 0 && idx < static_cast<int>(banks.size())) {
                 string bankName = banks[idx]->getBankName();
                 if (adminCreated[bankName]) {
                     cout << "This bank already has an admin. Please choose another bank.\n" << endl;
