@@ -1,0 +1,13 @@
+# CLion / CMake build outputs
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+compile_commands.json
+
+# IDE settings
+.idea/
+
+# macOS
+.DS_Store
