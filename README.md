@@ -82,6 +82,9 @@ The program asks for an input `.txt` file name at startup.
 Notes:
 - `serial6digits` must be exactly 6 numeric characters.
 - Names/tokens are read with whitespace separators, so avoid spaces inside one field.
+- Loading stops with an error naming the line if a line cannot be parsed, an account or ATM names an unknown bank,
+  an ATM type is unknown, a bill count is negative, or a bank name, card number, account number or serial number is repeated.
+  At least one bank is required.
 
 ## Example Input
 
@@ -115,10 +118,23 @@ Admin mode (admin account):
 - view ATM-specific transaction history
 - export ATM-specific history to file
 
+Input rules:
+- Amounts and menu choices accept digits only (no sign or trailing text).
+- At a cash prompt or during check entry, type `cancel` (or `취소`) to cancel; inserted cash is returned.
+- If input ends (closed terminal, piped file), the program exits cleanly.
+
 ## Generated Files
 
 - Receipts: `receipt_<username>_<transactionId>.txt`
 - Admin export: `atm_<serial>_history_<timestamp>.txt`
+
+## Tests
+
+```bash
+tests/run_tests.sh
+```
+
+Builds the program with AddressSanitizer and UndefinedBehaviorSanitizer, runs 26 scripted sessions against `tests/sample.txt` (the example above), and checks balances, fees, ATM cash, history output, input-file errors, cancelling, and exiting at end of input. It fails on any mismatch or sanitizer report. Set `CXX` to choose the compiler.
 
 ## Project Structure
 
@@ -128,7 +144,8 @@ Admin mode (admin account):
 - `Session.*`: session lifecycle and transaction list per session
 - `Transaction.*`: transaction model, history printing/export
 - `Utility.*`: CLI helpers for snapshots and ATM selection
-- `OurCin.*`: utility input wrapper
+- `OurCin.*`: input helpers (line reading, strict number parsing, end-of-input handling)
+- `tests/`: scripted end-to-end tests and the sample input
 
 ## Recent Quality Fixes
 
