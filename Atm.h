@@ -33,7 +33,8 @@ protected:
     void messages();
     void dispenseCash(unsigned long long amount);
     [[nodiscard]] bool canDispense(unsigned long long amount) const;
-    bool insertCash(unsigned long long& total, int& count, std::string& outInput) const;
+    enum class CashResult { ok, invalid, cancelled };
+    CashResult insertCash(unsigned long long& total, int& count, std::string& outInput) const;
     void print(const std::string& key) const;
     void print(const std::string& key, const std::string& arg) const;
     [[nodiscard]] Account* findAccountByCard(const std::string& cardNum, const std::string& bankName = "") const;

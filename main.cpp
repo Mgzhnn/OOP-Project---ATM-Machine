@@ -87,7 +87,14 @@ int main() {
 
     for (int i = 0; i < bankCount; i++) {
         string bankName;
-        file >> bankName;
+        if (!(file >> bankName)) {
+            cerr << "Error: expected " << bankCount << " bank names, found " << i << "." << endl;
+            return 1;
+        }
+        if (banksMap.contains(bankName)) {
+            cerr << "Error: duplicate bank name \"" << bankName << "\"." << endl;
+            return 1;
+        }
         auto bank = make_unique<Bank>(bankName);
         banksMap[bankName] = bank.get();
         banks.push_back(bank.get());
@@ -95,6 +102,8 @@ int main() {
         cout << "Bank loaded: " << bankName << endl;
     }
 
+    set<string> usedCardNums;
+    set<string> usedAccountNums;
     for (int i = 0; i < accountCount; i++) {
         string bankName;
         string username;
@@ -103,14 +112,26 @@ int main() {
         string cardNumber;
         string password;
 
-        file >> bankName >> username >> accNumber >> balance >> cardNumber >> password;
+        if (!(file >> bankName >> username >> accNumber >> balance >> cardNumber >> password)) {
+            cerr << "Error: account #" << (i + 1) << " must be \"<bankName> <username> <accountNumber> <balance> <cardNumber> <password>\"." << endl;
+            return 1;
+        }
+        if (!banksMap.contains(bankName)) {
+            cerr << "Error: account #" << (i + 1) << " (" << username << ") belongs to unknown bank \"" << bankName << "\"." << endl;
+            return 1;
+        }
+        if (!usedCardNums.insert(cardNumber).second) {
+            cerr << "Error: duplicate card number \"" << cardNumber << "\" in account #" << (i + 1) << "." << endl;
+            return 1;
+        }
+        if (!usedAccountNums.insert(accNumber).second) {
+            cerr << "Error: duplicate account number \"" << accNumber << "\" in account #" << (i + 1) << "." << endl;
+            return 1;
+        }
 
         auto card = make_unique<Card>(cardNumber, password);
         auto account = make_unique<Account>(username, accNumber, balance, std::move(card));
-
-        if (banksMap.contains(bankName)) {
-            banksMap[bankName]->addAccount(std::move(account));
-        }
+        banksMap[bankName]->addAccount(std::move(account));
     }
 
     set<string> usedSerialNums;
@@ -124,7 +145,18 @@ int main() {
         int won10k;
         int won50k;
 
-        file >> bankName >> serialNumber >> type1 >> type2 >> won50k >> won10k >> won5k >> won1k;
+        if (!(file >> bankName >> serialNumber >> type1 >> type2 >> won50k >> won10k >> won5k >> won1k)) {
+            cerr << "Error: ATM #" << (i + 1) << " must be \"<bankName> <serial> <Single|Multi> <Unilingual|Bilingual> <count50k> <count10k> <count5k> <count1k>\"." << endl;
+            return 1;
+        }
+        if (won50k < 0 || won10k < 0 || won5k < 0 || won1k < 0) {
+            cerr << "Error: ATM #" << (i + 1) << " has a negative bill count." << endl;
+            return 1;
+        }
+        if (!banksMap.contains(bankName)) {
+            cerr << "Error: ATM #" << (i + 1) << " belongs to unknown bank \"" << bankName << "\"." << endl;
+            return 1;
+        }
 
         bool validSerial = true;
 
@@ -147,11 +179,12 @@ int main() {
         }
 
         if (!validSerial) {
+            for (Atm* loaded : atms) delete loaded;
             return 1;
         }
 
 
-        Bank* primaryBank = banksMap.contains(bankName) ? banksMap[bankName] :banks[0];
+        Bank* primaryBank = banksMap[bankName];
         Atm* atm = nullptr;
 
         if (type1 == "Single" && type2 == "Unilingual") {
@@ -167,11 +200,15 @@ int main() {
             atm = new MultiBilingual(serialNumber, primaryBank, banks, won1k, won5k, won10k, won50k);
         }
 
-        if (atm) {
-            atms.push_back(atm);
-            Atm::addAtm(atm);
-            cout << "ATM (" << serialNumber << ") loaded." << endl;
+        if (!atm) {
+            cerr << "Error: ATM #" << (i + 1) << " has unknown type \"" << type1 << " " << type2
+                 << "\" (expected Single or Multi, then Unilingual or Bilingual)." << endl;
+            for (Atm* loaded : atms) delete loaded;
+            return 1;
         }
+        atms.push_back(atm);
+        Atm::addAtm(atm);
+        cout << "ATM (" << serialNumber << ") loaded." << endl;
     }
 
     cout << "\nSystem successfully loaded from: " << fileName << endl;
