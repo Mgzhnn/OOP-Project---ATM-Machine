@@ -57,29 +57,19 @@ void useAtm(const vector<Atm*>& atms) {
 
         cout << "\nChoose an ATM by its number (or type 'cancel' to return): ";
 
-        string input;
-        if (!getline(cin, input)) {
-            OurCin::clearCin();
-            cout << "Input error. Returning to main menu." << endl;
-            return;
-        }
-
-        size_t start = input.find_first_not_of(" \t");
-        if (start == string::npos) {
+        const string input = OurCin::readLine();
+        if (input.empty()) {
             cout << "Please enter a number or 'cancel'." << endl;
             continue;
         }
-        input = input.substr(start);
-        input = input.substr(0, input.find_last_not_of(" \t") + 1);
 
         if (input == "cancel") {
             cout << "Action cancelled. Returning to main menu." << endl;
             return;
         }
 
-        stringstream ss(input);
-        int choice;
-        if (ss >> choice && ss.eof()) {
+        int choice = 0;
+        if (OurCin::parseInt(input, choice)) {
             if (choice >= 0 && choice < static_cast<int>(atms.size())) {
                 Atm* chosenAtm = atms[choice];
                 chosenAtm->describe();

@@ -1,71 +1,34 @@
 #include "OurCin.h"
-#include <sstream>
-#include <limits>
+#include <charconv>
+#include <iostream>
 
 using namespace std;
 
-OurCin::OurCin() : commandMode(false){}
-
-OurCin &OurCin::operator>>(string &str) {
-    string input;
-
-    if (!getline(cin, input)) {
-        str = "";
-        return *this;
+string OurCin::readLine() {
+    string line;
+    if (!getline(cin, line)) {
+        throw InputClosed();
     }
-
-    if (!input.empty() && input.back() == '\r') {
-        input.pop_back();
+    const auto first = line.find_first_not_of(" \t\r\n");
+    if (first == string::npos) {
+        return "";
     }
-
-    if (input.empty()) {
-        str = "";
-        return *this;
-    }
-
-    if (input[0] == '/') {
-        commandMode = true;
-        command = input;
-        str = input;
-        return *this;
-    }
-
-    commandMode = false;
-    command = "";
-    str = input;
-    return *this;
+    const auto last = line.find_last_not_of(" \t\r\n");
+    return line.substr(first, last - first + 1);
 }
 
-template<typename T>
-OurCin &OurCin::operator>>(T& value) {
-    string input;
-    *this >> input;
-
-    if (commandMode) {
-        stringstream ss;
-        ss << "0";
-        ss >> value;
-        return *this;
+bool OurCin::parseAmount(const string& text, unsigned long long& value) {
+    if (text.empty() || text.find_first_not_of("0123456789") != string::npos) {
+        return false;
     }
-
-    stringstream ss(input);
-    if (!(ss >> value)) {
-        value = T();
-    }
-    return *this;
+    const auto [end, error] = from_chars(text.data(), text.data() + text.size(), value);
+    return error == errc() && end == text.data() + text.size();
 }
 
-template OurCin& OurCin::operator>>(int&);
-template OurCin& OurCin::operator>>(unsigned long long&);
-template OurCin& OurCin::operator>>(long long&);
-template OurCin& OurCin::operator>>(double&);
-
-void OurCin::reset() {
-    commandMode = false;
-    command.clear();
-}
-
-void OurCin::clearCin() {
-    cin.clear();
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+bool OurCin::parseInt(const string& text, int& value) {
+    if (text.empty() || text.find_first_not_of("0123456789") != string::npos) {
+        return false;
+    }
+    const auto [end, error] = from_chars(text.data(), text.data() + text.size(), value);
+    return error == errc() && end == text.data() + text.size();
 }
