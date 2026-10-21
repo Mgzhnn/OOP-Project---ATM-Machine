@@ -58,6 +58,7 @@ void Atm::messages() {
         {"invalid_card",       "Invalid card."},
         {"card_single",        "This ATM only accepts cards from its primary bank."},
         {"wrong_password",     "Incorrect password."},
+        {"too_many_attempts",  "Too many incorrect password attempts."},
         {"success",            "Transaction completed successfully!"},
         {"not_enough_cash",    "ATM does not have enough cash for this withdrawal."},
         {"empty_cash",         "No bills inserted. Please insert at least one bill."},
@@ -110,6 +111,7 @@ void Atm::messages() {
         {"invalid_card",       "유효하지 않은 카드입니다."},
         {"card_single",        "이 ATM은 기본 은행의 카드만 사용할 수 있습니다."},
         {"wrong_password",     "비밀번호가 올바르지 않습니다."},
+        {"too_many_attempts",  "비밀번호 입력 횟수를 초과했습니다."},
         {"success",            "거래가 성공적으로 완료되었습니다!"},
         {"not_enough_cash",    "ATM에 출금 가능한 현금이 부족합니다."},
         {"empty_cash",         "투입된 지폐가 없습니다."},
@@ -452,6 +454,16 @@ void Atm::printReceipt(const Transaction *t) const {
     file.close();
 }
 
+void Atm::offerReceipt(const Transaction *t) const {
+    print("receipt_prompt");
+    while (true) {
+        const string answer = OurCin::readLine();
+        if (answer == "yes") { printReceipt(t); return; }
+        if (answer == "no")  { print("receipt_no"); return; }
+        print("receipt_yesno_retry");
+    }
+}
+
 bool Atm::deposit()
 {
     int type = 0;
@@ -603,15 +615,7 @@ bool Atm::deposit()
         cout << endl;
     }
 
-    print("receipt_prompt");
-    string answer;
-    while (getline(cin, answer)) {
-        answer.erase(0, answer.find_first_not_of(" \t\r\n"));
-        answer.erase(answer.find_last_not_of(" \t\r\n") + 1);
-        if (answer == "yes") { printReceipt(t1); break; }
-        if (answer == "no")  { print("receipt_no"); break; }
-        print("receipt_yesno_retry");
-    }
+    offerReceipt(t1);
     return true;
 }
 
@@ -695,15 +699,7 @@ bool Atm::withdraw()
 
     print("success");
 
-    print("receipt_prompt");
-    string answer;
-    while (getline(cin, answer)) {
-        answer.erase(0, answer.find_first_not_of(" \t\r\n"));
-        answer.erase(answer.find_last_not_of(" \t\r\n") + 1);
-        if (answer == "yes") { printReceipt(t1); break; }
-        if (answer == "no")  { print("receipt_no"); break; }
-        print("receipt_yesno_retry");
-    }
+    offerReceipt(t1);
     return true;
 }
 
@@ -869,15 +865,7 @@ bool Atm::transfer()
         cout << endl;
     }
 
-    print("receipt_prompt");
-    string answer;
-    while (getline(cin, answer)) {
-        answer.erase(0, answer.find_first_not_of(" \t\r\n"));
-        answer.erase(answer.find_last_not_of(" \t\r\n") + 1);
-        if (answer == "yes") { printReceipt(t1); break; }
-        if (answer == "no")  { print("receipt_no"); break; }
-        print("receipt_yesno_retry");
-    }
+    offerReceipt(t1);
     return true;
 }
 
@@ -922,14 +910,10 @@ bool Atm::startSession() {
         return false;
     }
 
-    bool isMulti = dynamic_cast<MultiUnilingual*>(this) != nullptr || dynamic_cast<MultiBilingual*>(this) != nullptr;
-    if (!isMulti) {
-        Bank* accBank = account->getBank();
-        if (!accBank || accBank != primaryBank) {
-            print("card_single");
-            endSession();
-            return false;
-        }
+    if (!acceptsCard(account)) {
+        print("card_single");
+        endSession();
+        return false;
     }
 
     int attempts = 0;
@@ -947,25 +931,27 @@ bool Atm::startSession() {
     }
 
     if (!success) {
-        print("wrong_password");
+        print("too_many_attempts");
         endSession();
         return false;
     }
 
-    Session* currentSession = Session::getSessionById(Session::getTotalSessions() - 1);
+    // Checked before the account is attached, so a rejected admin card is not recorded
+    if (account->isItAdmin() && account->getBank() != primaryBank) {
+        if (language == "en") {
+            cout << "Admin account is not allowed on this ATM." << endl;
+        }
+        else {
+            cout << "이 ATM에서는 해당 관리자 계정을 사용할 수 없습니다." << endl;
+        }
+        endSession();
+        return false;
+    }
+
+    Session* currentSession = getCurrentSession();
     currentSession->setAccount(account);
 
     if (account->isItAdmin()) {
-        if (account->getBank() != primaryBank) {
-            if (language == "en") {
-                cout << "Admin account is not allowed on this ATM." << endl;
-            }
-            else {
-                cout << "이 ATM에서는 해당 관리자 계정을 사용할 수 없습니다." << endl;
-            }
-            endSession();
-            return false;
-        }
         currentSession->setAdminMode(true);
         print("admin_activated");
         handleAdmin();
@@ -1081,9 +1067,6 @@ void SingleUnilingual::describe() const {
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
 }
 
-bool SingleUnilingual::startSession() {
-    return Atm::startSession();
-}
 
 
 //SingleBilingual
@@ -1096,9 +1079,6 @@ void SingleBilingual::describe() const {
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
 }
 
-bool SingleBilingual::startSession() {
-    return Atm::startSession();
-}
 
 
 //MultiUnilingual
@@ -1113,9 +1093,6 @@ void MultiUnilingual::describe() const {
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
 }
 
-bool MultiUnilingual::startSession() {
-    return Atm::startSession();
-}
 
 
 //MultiBilingual
@@ -1126,8 +1103,4 @@ void MultiBilingual::describe() const {
     cout << "Multi-bank Bilingual ATM." << endl;
     cout << "Serial number: " << serialNumber << endl;
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
-}
-
-bool MultiBilingual::startSession() {
-    return Atm::startSession();
 }

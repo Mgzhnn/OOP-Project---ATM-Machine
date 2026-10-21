@@ -76,9 +76,142 @@ void Transaction::print(const std::string &language) const {
     else {printKorean();}
 }
 
-void Transaction::printHistory(const std::string& lang, const std::string& atmSerial) {
-    const int totalSessions = Session::getTotalSessions();
+namespace {
+// One transaction as a history line, shared by the screen history and the file export
+void writeTransactionLine(ostream& out, const Transaction* t, const string& lang) {
+    if (lang == "en") {
+        switch (t->getType()) {
+            case TransactionType::deposit:
+                out << "ID " << t->getID() << ": " << t->getAmount()
+                    << " won deposited to " << t->getFromAccount();
+                if (t->getFee()) out << " (Fee: " << t->getFee() << ")";
+                break;
+            case TransactionType::withdraw:
+                out << "ID " << t->getID() << ": " << t->getAmount()
+                    << " won withdrawn from " << t->getFromAccount()
+                    << " (Fee: " << t->getFee() << ")";
+                break;
+            case TransactionType::transfer:
+                out << "ID " << t->getID() << ": " << t->getAmount()
+                    << " won transferred from " << t->getFromAccount()
+                    << " to " << t->getToAccount()
+                    << " (Fee: " << t->getFee() << ")";
+                break;
+            default:
+                out << "Unknown transaction";
+                break;
+        }
+    } else {
+        switch (t->getType()) {
+            case TransactionType::deposit:
+                out << t->getAmount() << "원 입금 (" << t->getFromAccount() << ")";
+                if (t->getFee()) out << " (수수료: " << t->getFee() << ")";
+                break;
+            case TransactionType::withdraw:
+                out << t->getAmount() << "원 출금 (" << t->getFromAccount()
+                    << ") (수수료: " << t->getFee() << ")";
+                break;
+            case TransactionType::transfer:
+                out << t->getAmount() << "원 이체: " << t->getFromAccount()
+                    << " → " << t->getToAccount()
+                    << " (수수료: " << t->getFee() << ")";
+                break;
+            default:
+                out << "알 수 없는 거래";
+                break;
+        }
+    }
+}
+}
 
+void Transaction::writeSessions(ostream& out, const string& lang, const string& atmSerial, bool forFile) {
+    const bool en = lang == "en";
+    const int totalSessions = Session::getTotalSessions();
+    const string sessionLabel = en ? "Session " : "세션 ";
+    const string sessionColon = en ? ":" : " :";
+    // The screen separates sessions with a blank line before each; the file indents entries
+    const string sessionPrefix = forFile ? "" : "\n";
+    const string entryIndent = forFile ? "  " : "";
+
+    // Transactions of this ATM's sessions, grouped by session and source account
+    map<int, map<string, vector<Transaction*>>> grouped;
+    for (const auto& up : transactions) {
+        Transaction* t = up.get();
+        const Session* s = Session::getSessionById(t->getSessionID());
+        if (!s || s->getAtmSerial() != atmSerial || !s->getAccount()) continue;
+        grouped[t->getSessionID()][t->getFromAccount()].push_back(t);
+    }
+
+    bool anySessionPrinted = false;
+    for (int i = 0; i < totalSessions; ++i) {
+        const Session* s = Session::getSessionById(i);
+        if (!s || s->getAtmSerial() != atmSerial) continue;
+
+        if (s->isAdminMode()) {
+            if (forFile) {
+                out << sessionLabel << i << (en ? ": Admin session\n\n" : ": 관리자 세션\n\n");
+            } else {
+                const bool current = i == totalSessions - 1;
+                out << sessionPrefix << sessionLabel << i << sessionColon << "\n";
+                if (en) out << (current ? "Admin session (current session)" : "Admin session") << "\n\n";
+                else    out << (current ? "관리자 세션 (현재 세션)" : "관리자 세션") << "\n\n";
+            }
+            anySessionPrinted = true;
+            continue;
+        }
+
+        if (!s->getAccount()) {
+            // Sessions without an authenticated card are shown on screen only
+            if (!forFile) {
+                out << sessionPrefix << sessionLabel << i << sessionColon << "\n";
+                out << (en ? "Invalid or no card. Session recorded with no authenticated user."
+                           : "유효하지 않은 카드입니다. 인증된 사용자가 없는 세션으로 기록됩니다.") << "\n\n";
+                anySessionPrinted = true;
+            }
+            continue;
+        }
+
+        const Account* acc = s->getAccount();
+        string cardNumber = "Unknown";
+        if (const Card* card = acc->getLinkedCard()) {
+            cardNumber = card->getCardNumber();
+        }
+
+        out << sessionPrefix << sessionLabel << i << sessionColon << "\n";
+        out << (en ? "Card number of user: " : "사용자 카드 번호: ") << cardNumber << "\n";
+        out << acc->getAccountNumber() << (en ? "'s transaction history:" : " 계좌의 거래 내역:") << "\n";
+        anySessionPrinted = true;
+
+        const string noTransactions = en ? "No transactions in this session.\n\n" : "이 세션에는 거래가 없습니다.\n\n";
+        const auto sessionIt = grouped.find(i);
+        if (sessionIt == grouped.end() || sessionIt->second.empty()) {
+            out << noTransactions;
+            continue;
+        }
+
+        bool hasNormal = false;
+        for (const auto& [fromAcc, list] : sessionIt->second) {
+            if (fromAcc.empty()) continue;
+            hasNormal = true;
+            int num = 1;
+            for (const auto* t : list) {
+                out << entryIndent << num++ << ". ";
+                writeTransactionLine(out, t, lang);
+                out << "\n";
+            }
+            out << "\n";
+        }
+        if (!hasNormal) {
+            out << noTransactions;
+        }
+    }
+
+    if (!forFile && !anySessionPrinted) {
+        out << (en ? "\nNo transactions on this ATM yet." : "\n이 ATM에서 발생한 거래가 아직 없습니다.") << "\n";
+    }
+}
+
+void Transaction::printHistory(const std::string& lang, const std::string& atmSerial) {
     cout << "\n======================================" << endl;
     if (lang == "en") {
         cout << "Transaction history for ATM " << atmSerial << endl;
@@ -87,166 +220,8 @@ void Transaction::printHistory(const std::string& lang, const std::string& atmSe
     }
     cout << "======================================" << endl;
 
-    // Сгруппируем ТОЛЬКО транзакции сессий этого ATM
-    std::map<int, std::map<std::string, std::vector<Transaction*>>> grouped;
-
-    for (auto& up : transactions) {
-        Transaction* t = up.get();
-        Session* s = Session::getSessionById(t->getSessionID());
-        if (!s) continue;
-        if (s->getAtmSerial() != atmSerial) continue;   // <--- ключевой фильтр
-        if (!s->getAccount()) continue;
-
-        grouped[t->getSessionID()][t->getFromAccount()].push_back(t);
-    }
-
-    bool anySessionPrinted = false;
-
-    for (int i = 0; i < totalSessions; ++i) {
-        Session* s = Session::getSessionById(i);
-        if (!s) continue;
-
-        // Пропускаем сессии других ATM
-        if (s->getAtmSerial() != atmSerial) {
-            continue;
-        }
-
-        // Админ-сессии
-        if (s->isAdminMode()) {
-            if (lang == "en") {
-                cout << "\nSession " << i << ":" << endl;
-                if (i == totalSessions - 1) {
-                    cout << "Admin session (current session)" << endl;
-                } else {
-                    cout << "Admin session" << endl;
-                }
-            } else {
-                cout << "\n세션 " << i << " :" << endl;
-                if (i == totalSessions - 1) {
-                    cout << "관리자 세션 (현재 세션)" << endl;
-                } else {
-                    cout << "관리자 세션" << endl;
-                }
-            }
-            cout << endl;
-            anySessionPrinted = true;
-            continue;
-        }
-
-        if (!s->getAccount()) {
-            if (lang == "en") {
-                cout << "\nSession " << i << ":" << endl;
-                cout << "Invalid or no card. Session recorded with no authenticated user." << endl << endl;
-            } else {
-                cout << "\n세션 " << i << " :" << endl;
-                cout << "유효하지 않은 카드입니다. 인증된 사용자가 없는 세션으로 기록됩니다." << endl << endl;
-            }
-            anySessionPrinted = true;
-            continue;
-        }
-
-        const Account* acc = s->getAccount();
-        const std::string& accNum = acc->getAccountNumber();
-        std::string cardNumber = "Unknown";
-        if (Card* card = acc->getLinkedCard()) {
-            cardNumber = card->getCardNumber();
-        }
-
-        if (lang == "en") {
-            cout << "\nSession " << i << ":" << endl;
-            cout << "Card number of user: " << cardNumber << endl;
-            cout << accNum << "'s transaction history:" << endl;
-        } else {
-            cout << "\n세션 " << i << " :" << endl;
-            cout << "사용자 카드 번호: " << cardNumber << endl;
-            cout << accNum << " 계좌의 거래 내역: " << endl;
-        }
-
-        auto sessionIt = grouped.find(i);
-        if (sessionIt == grouped.end() || sessionIt->second.empty()) {
-            if (lang == "en") {
-                cout << "No transactions in this session." << endl << endl;
-            } else {
-                cout << "이 세션에는 거래가 없습니다." << endl << endl;
-            }
-            anySessionPrinted = true;
-            continue;
-        }
-
-        bool hasNormal = false;
-        for (const auto& accPair : sessionIt->second) {
-            const std::string& fromAcc = accPair.first;
-            if (fromAcc.empty()) continue;
-
-            hasNormal = true;
-            int num = 1;
-            for (auto* t : accPair.second) {
-                cout << num++ << ". ";
-                if (lang == "en") {
-                    switch (t->getType()) {
-                        case TransactionType::deposit:
-                            cout << "ID " << t->getID() << ": " << t->getAmount()
-                                 << " won deposited to " << t->getFromAccount();
-                            if (t->getFee()) cout << " (Fee: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::withdraw:
-                            cout << "ID " << t->getID() << ": " << t->getAmount()
-                                 << " won withdrawn from " << t->getFromAccount()
-                                 << " (Fee: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::transfer:
-                            cout << "ID " << t->getID() << ": " << t->getAmount()
-                                 << " won transferred from " << t->getFromAccount()
-                                 << " to " << t->getToAccount()
-                                 << " (Fee: " << t->getFee() << ")";
-                            break;
-                        default:
-                            cout << "Unknown transaction";
-                            break;
-                    }
-                } else {
-                    switch (t->getType()) {
-                        case TransactionType::deposit:
-                            cout << t->getAmount() << "원 입금 (" << t->getFromAccount() << ")";
-                            if (t->getFee()) cout << " (수수료: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::withdraw:
-                            cout << t->getAmount() << "원 출금 (" << t->getFromAccount()
-                                 << ") (수수료: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::transfer:
-                            cout << t->getAmount() << "원 이체: " << t->getFromAccount()
-                                 << " → " << t->getToAccount()
-                                 << " (수수료: " << t->getFee() << ")";
-                            break;
-                        default:
-                            cout << "알 수 없는 거래";
-                            break;
-                    }
-                }
-                cout << endl;
-            }
-            cout << endl;
-        }
-
-        if (!hasNormal) {
-            if (lang == "en") {
-                cout << "No transactions in this session." << endl << endl;
-            } else {
-                cout << "이 세션에는 거래가 없습니다." << endl << endl;
-            }
-        }
-
-        anySessionPrinted = true;
-    }
-
-    if (!anySessionPrinted) {
-        if (lang == "en") {
-            cout << "\nNo transactions on this ATM yet." << endl;
-        } else {
-            cout << "\n이 ATM에서 발생한 거래가 아직 없습니다." << endl;
-        }
-    }
+    writeSessions(cout, lang, atmSerial, false);
+    cout.flush();
 }
 
 void Transaction::outputToFile(const string &lang, const string& atmSerial) {
@@ -269,128 +244,7 @@ void Transaction::outputToFile(const string &lang, const string& atmSerial) {
         file << "발행 시각: " << dateTime << "\n\n";
     }
 
-    std::map<int, std::map<std::string, std::vector<Transaction*>>> grouped;
-
-    for (const auto& up : transactions) {
-        Transaction* t = up.get();
-        Session* s = Session::getSessionById(t->getSessionID());
-        if (!s) continue;
-        if (s->getAtmSerial() != atmSerial) continue;
-        if (!s->getAccount()) continue;
-
-        grouped[t->getSessionID()][t->getFromAccount()].push_back(t);
-    }
-
-    for (int i = 0; i < Session::getTotalSessions(); ++i) {
-        Session* s = Session::getSessionById(i);
-        if (!s) continue;
-        if (s->getAtmSerial() != atmSerial) continue;
-
-        if (s->isAdminMode()) {
-            if (lang == "en") {
-                file << "Session " << i << ": Admin session\n\n";
-            } else {
-                file << "세션 " << i << ": 관리자 세션\n\n";
-            }
-            continue;
-        }
-
-        if (!s->getAccount()) {
-            continue;
-        }
-
-        const Account* acc = s->getAccount();
-        const string& accNum = acc->getAccountNumber();
-        string cardNumber = "Unknown";
-        if (Card* card = acc->getLinkedCard()) {
-            cardNumber = card->getCardNumber();
-        }
-
-        if (lang == "en") {
-            file << "Session " << i << ":\n";
-            file << "Card number of user: " << cardNumber << "\n";
-            file << accNum << "'s transaction history:\n";
-        }
-        else {
-            file << "세션 " << i << " :\n";
-            file << "사용자 카드 번호: " << cardNumber << "\n";
-            file << accNum << " 계좌의 거래 내역:\n";
-        }
-
-        auto sessionIt = grouped.find(i);
-        if (sessionIt == grouped.end() || sessionIt->second.empty()) {
-            if (lang == "en") {
-                file << "No transactions in this session.\n\n";
-            } else {
-                file << "이 세션에는 거래가 없습니다.\n\n";
-            }
-            continue;
-        }
-
-        bool isNormal = false;
-        for (const auto& accPair : sessionIt->second) {
-            const string& fromAcc = accPair.first;
-            if (fromAcc.empty()) continue;
-
-            isNormal = true;
-            int num = 1;
-            for (auto* t : accPair.second) {
-                file << "  " << num++ << ". ";
-                if (lang == "en") {
-                    switch (t->getType()) {
-                        case TransactionType::deposit:
-                            file << "ID " << t->getID() << ": " << t->getAmount()
-                                 << " won deposited to " << t->getFromAccount();
-                            if (t->getFee()) file << " (Fee: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::withdraw:
-                            file << "ID " << t->getID() << ": " << t->getAmount()
-                                 << " won withdrawn from " << t->getFromAccount()
-                                 << " (Fee: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::transfer:
-                            file << "ID " << t->getID() << ": " << t->getAmount()
-                                 << " won transferred from " << t->getFromAccount()
-                                 << " to " << t->getToAccount()
-                                 << " (Fee: " << t->getFee() << ")";
-                            break;
-                        default:
-                            file << "Unknown transaction";
-                            break;
-                    }
-                } else {
-                    switch (t->getType()) {
-                        case TransactionType::deposit:
-                            file << t->getAmount() << "원 입금 (" << t->getFromAccount() << ")";
-                            if (t->getFee()) file << " (수수료: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::withdraw:
-                            file << t->getAmount() << "원 출금 (" << t->getFromAccount()
-                                 << ") (수수료: " << t->getFee() << ")";
-                            break;
-                        case TransactionType::transfer:
-                            file << t->getAmount() << "원 이체: " << t->getFromAccount()
-                                 << " → " << t->getToAccount()
-                                 << " (수수료: " << t->getFee() << ")";
-                            break;
-                        default:
-                            file << "알 수 없는 거래";
-                            break;
-                    }
-                }
-                file << "\n";
-            }
-            file << "\n";
-        }
-
-        if (!isNormal) {
-            if (lang == "en") {
-                file << "No transactions in this session.\n\n";
-            } else {
-                file << "이 세션에는 거래가 없습니다.\n\n";
-            }
-        }
-    }
+    writeSessions(file, lang, atmSerial, true);
 
     if (lang == "en")
         cout << "\nHistory saved to '" << filename << "'\n";

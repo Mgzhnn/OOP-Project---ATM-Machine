@@ -44,6 +44,7 @@ protected:
     bool withdraw();
     bool transfer();
     void printReceipt(const Transaction* t) const;
+    void offerReceipt(const Transaction* t) const;
     void runMenu();
     void handleAdmin() const;
 
@@ -64,10 +65,11 @@ public:
     Atm(std::string  serial, Bank* primeBank, const std::vector<Bank*>& banks,
         bool bilingual, int w1k, int w5k, int w10k, int w50k);
 virtual ~Atm() = default;
+    // Which cards this kind of ATM accepts (single-bank ATMs: primary bank only)
     virtual bool acceptsCard(Account* account) const = 0;
     virtual void describe() const = 0;
 
-    virtual bool startSession() = 0;
+    bool startSession();
     void endSession() const;
 
     [[nodiscard]] const std::string& getSerialNumber() const {return serialNumber;}
@@ -88,7 +90,6 @@ class SingleUnilingual: public Atm {
     }
 
     void describe() const override;
-    bool startSession() override;
 };
 
 class SingleBilingual: public Atm {
@@ -101,7 +102,6 @@ public:
     }
 
     void describe() const override;
-    bool startSession() override;
 };
 
 class MultiUnilingual: public Atm {
@@ -114,7 +114,6 @@ public:
     }
 
     void describe() const override;
-    bool startSession() override;
 };
 
 class MultiBilingual: public Atm {
@@ -127,7 +126,6 @@ public:
     }
 
     void describe() const override;
-    bool startSession() override;
 };
 
 #endif //OOP_PROJECT_ATM_H

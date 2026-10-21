@@ -21,7 +21,6 @@ private:
 
 public:
     explicit Session(Account* acc, bool admin = false, std::string  atmSerial = "");
-    ~Session();
 
     [[nodiscard]] int getId() const { return id;}
     static int getTotalSessions() {return nextID;}

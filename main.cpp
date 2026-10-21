@@ -260,6 +260,10 @@ int main() {
                 cout << "Enter admin card number: ";
                 adminCard = OurCin::readLine();
                 erase_if(adminCard, [](unsigned char c) {return isspace(c);});
+                if (adminCard.empty()) {
+                    cout << "Card number cannot be empty.\n" << endl;
+                    continue;
+                }
 
                 bool unique = true;
                 for (const auto* bank : banks) {

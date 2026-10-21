@@ -21,6 +21,9 @@ private:
     static int nextId;
     static std::vector<std::unique_ptr<Transaction>> transactions;
 
+    // Session-by-session history of one ATM; forFile selects the export layout
+    static void writeSessions(std::ostream& out, const std::string& lang, const std::string& atmSerial, bool forFile);
+
 public:
     Transaction(TransactionType t, unsigned long long amt, unsigned long long f, std::string from, std::string to, int sessionId);
 
