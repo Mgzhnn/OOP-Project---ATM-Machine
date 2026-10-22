@@ -108,12 +108,18 @@ int main() {
         string bankName;
         string username;
         string accNumber;
+        string balanceText;
         unsigned long long balance;
         string cardNumber;
         string password;
 
-        if (!(file >> bankName >> username >> accNumber >> balance >> cardNumber >> password)) {
+        if (!(file >> bankName >> username >> accNumber >> balanceText >> cardNumber >> password)) {
             cerr << "Error: account #" << (i + 1) << " must be \"<bankName> <username> <accountNumber> <balance> <cardNumber> <password>\"." << endl;
+            return 1;
+        }
+        // Digits only: stream extraction into unsigned long long would wrap "-5" to a huge balance.
+        if (!OurCin::parseAmount(balanceText, balance)) {
+            cerr << "Error: account #" << (i + 1) << " (" << username << ") has an invalid balance \"" << balanceText << "\" (digits only)." << endl;
             return 1;
         }
         if (!banksMap.contains(bankName)) {
