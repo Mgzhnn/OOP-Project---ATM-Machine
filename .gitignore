@@ -14,3 +14,6 @@ compile_commands.json
 
 # Local manual build output
 OOP_Project_bin
+
+# CMake build directory used in the README
+build/
