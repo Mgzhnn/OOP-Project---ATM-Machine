@@ -83,7 +83,7 @@ Notes:
 - `serial6digits` must be exactly 6 numeric characters.
 - Names/tokens are read with whitespace separators, so avoid spaces inside one field.
 - Loading stops with an error naming the line if a line cannot be parsed, an account or ATM names an unknown bank,
-  an ATM type is unknown, a bill count is negative, or a bank name, card number, account number or serial number is repeated.
+  an ATM type is unknown, a balance is not a plain non-negative number, a bill count is negative, or a bank name, card number, account number or serial number is repeated.
   At least one bank is required.
 
 ## Example Input
@@ -134,7 +134,7 @@ Input rules:
 tests/run_tests.sh
 ```
 
-Builds the program with AddressSanitizer and UndefinedBehaviorSanitizer, runs 26 scripted sessions against `tests/sample.txt` (the example above), and checks balances, fees, ATM cash, history output, input-file errors, cancelling, and exiting at end of input. It fails on any mismatch or sanitizer report. Set `CXX` to choose the compiler.
+Builds the program with AddressSanitizer and UndefinedBehaviorSanitizer, runs 27 scripted sessions against `tests/sample.txt` (the example above), and checks balances, fees, ATM cash, history output, input-file errors, cancelling, and exiting at end of input. It fails on any mismatch or sanitizer report. Set `CXX` to choose the compiler.
 
 ## Project Structure
 

@@ -75,6 +75,7 @@ bad_file negative_cash "${H}KB B 100-2 5 222 2\nKB 123456 Single Unilingual 1 -1
 bad_file dup_card      "${H}Shinhan B 100-2 5 111 2\nKB 123456 Single Unilingual 1 1 1 1\n" 'duplicate card number "111"'
 bad_file dup_account   "${H}Shinhan B 100-1 5 222 2\nKB 123456 Single Unilingual 1 1 1 1\n" 'duplicate account number "100-1"'
 bad_file bad_serial    "${H}KB B 100-2 5 222 2\nKB 12x456 Single Unilingual 1 1 1 1\n" 'must contain only digits'
+bad_file neg_balance   "${H}KB B 100-2 -5 222 2\nKB 123456 Single Unilingual 1 1 1 1\n" 'account #2 (B) has an invalid balance "-5"'
 
 # --- cash transfer: cancelling at either step leaves the ATM's cash unchanged
 START_CASH='Remaining cash: 20 x 50,000 won | 40 x 10,000 won | 40 x 5,000 won | 50 x 1,000 won'
