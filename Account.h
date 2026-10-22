@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 #include "Card.h"
-#include "Bank.h"
 #include "Transaction.h"
 
 class Bank;

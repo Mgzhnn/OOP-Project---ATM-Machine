@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <array>
+#include <climits>
 
 using namespace std;
 
@@ -48,7 +49,7 @@ void Atm::messages() {
         {"transfer_type",      "Select transfer method: 1. Cash Transfer    2. Account Transfer"},
         {"transfer_to",        "Enter recipient account number:"},
         {"transfer_amount",    "Enter transfer amount:"},
-        {"insert_cash",        "Insert cash (format: 50k 10k 5k 1k):"},
+        {"insert_cash",        "Insert cash (format: 50k 10k 5k 1k), or type 'cancel':"},
         {"insert_checks",      "Enter check amount (minimum 100,000 won). Type 'cancel' to finish:"},
         {"dispensed",          "Dispensed:"},
         {"thanks",             "Thank you for using our service. Please take your card."},
@@ -57,6 +58,7 @@ void Atm::messages() {
         {"invalid_card",       "Invalid card."},
         {"card_single",        "This ATM only accepts cards from its primary bank."},
         {"wrong_password",     "Incorrect password."},
+        {"too_many_attempts",  "Too many incorrect password attempts."},
         {"success",            "Transaction completed successfully!"},
         {"not_enough_cash",    "ATM does not have enough cash for this withdrawal."},
         {"empty_cash",         "No bills inserted. Please insert at least one bill."},
@@ -65,6 +67,7 @@ void Atm::messages() {
         {"check_too_small",    "Each check must be at least 100,000 KRW."},
         {"to_not_found",       "Recipient account not found."},
         {"amount_mismatch",    "Inserted amount does not match the required amount."},
+        {"transaction_cancelled", "Transaction cancelled. Any inserted cash has been returned."},
         {"max_withdraw_count", "Maximum 3 withdrawals allowed per session."},
         {"max_withdraw_amount","Maximum withdrawal amount is 500,000 KRW per transaction."},
         {"invalid_amount",     "Invalid amount entered."},
@@ -99,8 +102,8 @@ void Atm::messages() {
         {"transfer_type",      "이체 방식을 선택하세요: 1. 현금 이체    2. 계좌 이체"},
         {"transfer_to",        "받는 분 계좌번호를 입력하세요:"},
         {"transfer_amount",    "이체할 금액을 입력하세요:"},
-        {"insert_cash",        "현금을 투입해 주세요 (형식: 5만 1만 5천 1천):"},
-        {"insert_checks",      "수표 금액을 입력하세요 (최소 100,000원). 종료하려면 0 또는 'cancel'/'취소' 입력:"},
+        {"insert_cash",        "현금을 투입해 주세요 (형식: 5만 1만 5천 1천), 취소하려면 'cancel' 또는 '취소' 입력:"},
+        {"insert_checks",      "수표 금액을 입력하세요 (최소 100,000원). 종료하려면 'cancel' 또는 '취소' 입력:"},
         {"dispensed",          "지급 내역:"},
         {"thanks",             "이용해 주셔서 감사합니다. 카드를 가져가시기 바랍니다."},
 
@@ -108,6 +111,7 @@ void Atm::messages() {
         {"invalid_card",       "유효하지 않은 카드입니다."},
         {"card_single",        "이 ATM은 기본 은행의 카드만 사용할 수 있습니다."},
         {"wrong_password",     "비밀번호가 올바르지 않습니다."},
+        {"too_many_attempts",  "비밀번호 입력 횟수를 초과했습니다."},
         {"success",            "거래가 성공적으로 완료되었습니다!"},
         {"not_enough_cash",    "ATM에 출금 가능한 현금이 부족합니다."},
         {"empty_cash",         "투입된 지폐가 없습니다."},
@@ -116,6 +120,7 @@ void Atm::messages() {
         {"check_too_small",    "수표는 10만원 이상이어야 합니다."},
         {"to_not_found",       "받는 분 계좌를 찾을 수 없습니다."},
         {"amount_mismatch",    "투입 금액이 일치하지 않습니다."},
+        {"transaction_cancelled", "거래가 취소되었습니다. 투입한 현금은 반환되었습니다."},
         {"max_withdraw_count", "한 세션에 최대 3회까지 출금 가능합니다."},
         {"max_withdraw_amount","1회 출금 한도는 50만원입니다."},
         {"invalid_amount",     "유효하지 않은 금액입니다."},
@@ -208,22 +213,17 @@ void Atm::dispenseCash(unsigned long long amount) {
     }
 }
 
-bool Atm::insertCash(unsigned long long &total, int &cashCount, string& outInput) const {
-    string input;
+Atm::CashResult Atm::insertCash(unsigned long long &total, int &cashCount, string& outInput) const {
     print("insert_cash");
-    if (!getline(cin, input)) {
-        print("invalid_amount");
-        return false;
+    const string input = OurCin::readLine();
+    if (input == "cancel" || input == "취소") {
+        print("transaction_cancelled");
+        return CashResult::cancelled;
     }
-
-    const auto first = input.find_first_not_of(" \t\r\n");
-    if (first == string::npos) {
+    if (input.empty()) {
         print("empty_cash");
-        return false;
+        return CashResult::invalid;
     }
-
-    const auto last = input.find_last_not_of(" \t\r\n");
-    input = input.substr(first, last - first + 1);
 
     stringstream ss(input);
     int w50k = 0;
@@ -232,33 +232,33 @@ bool Atm::insertCash(unsigned long long &total, int &cashCount, string& outInput
     int w1k = 0;
     if (!(ss >> w50k >> w10k >> w5k >> w1k) || ss.fail()) {
         print("invalid_amount");
-        return false;
+        return CashResult::invalid;
     }
 
     int extra;
     if (ss >> extra) {
         print("invalid_amount");
-        return false;
+        return CashResult::invalid;
     }
 
     if (w50k < 0 || w10k < 0 || w5k < 0 || w1k < 0) {
         print("invalid_amount");
-        return false;
+        return CashResult::invalid;
     }
 
     cashCount = w50k + w10k + w5k + w1k;
     if (cashCount == 0) {
         print("empty_cash");
-        return false;
+        return CashResult::invalid;
     }
     if (cashCount > 50) {
         print("too_many_bills");
-        return false;
+        return CashResult::invalid;
     }
 
     total = w50k * 50000ULL + w10k * 10000ULL + w5k * 5000ULL + w1k * 1000ULL;
     outInput = input;
-    return true;
+    return CashResult::ok;
 }
 
 Atm::CheckDeposit Atm::depositChecks() const {
@@ -268,36 +268,34 @@ Atm::CheckDeposit Atm::depositChecks() const {
     print("insert_checks");
 
     while (result.count < max) {
-        string input;
-        if (!getline(cin, input)) {
-            OurCin::clearCin();
-            continue;
-        }
+        const string input = OurCin::readLine();
+        if (input.empty()) continue;
 
-        size_t start = input.find_first_not_of(" \t\r\n");
-        if (start == string::npos) continue;
-        input = input.substr(start);
-        size_t end = input.find_last_not_of(" \t\r\n");
-        input = input.substr(0, end + 1);
-
-        if (input == "cancel") {
+        if (input == "cancel" || input == "취소") {
             if (result.count == 0) {
                 result.cancelled = true;
             }
             break;
         }
 
-        unsigned long long amount;
-        if (stringstream ss(input); !(ss >> amount) || !ss.eof()) {
+        unsigned long long amount = 0;
+        if (!OurCin::parseAmount(input, amount)) {
             if (language == "en")
                 cout << "Invalid input. Try again (or 'cancel' to finish):" << endl;
             else
-                cout << "잘못된 입력입니다. 다시 입력하세요 (종료: 0):" << endl;
+                cout << "잘못된 입력입니다. 다시 입력하세요 (종료: 'cancel' 또는 '취소'):" << endl;
             continue;
         }
 
         if (amount < 100000) {
             print("check_too_small");
+            continue;
+        }
+
+        // The balance plus all accepted checks must still fit in the balance type
+        const unsigned long long balance = getCurrentSession()->getAccount()->getBalance();
+        if (amount > ULLONG_MAX - balance - result.total) {
+            print("invalid_amount");
             continue;
         }
 
@@ -456,17 +454,25 @@ void Atm::printReceipt(const Transaction *t) const {
     file.close();
 }
 
+void Atm::offerReceipt(const Transaction *t) const {
+    print("receipt_prompt");
+    while (true) {
+        const string answer = OurCin::readLine();
+        if (answer == "yes") { printReceipt(t); return; }
+        if (answer == "no")  { print("receipt_no"); return; }
+        print("receipt_yesno_retry");
+    }
+}
+
 bool Atm::deposit()
 {
     int type = 0;
     while (true) {
         print("deposit_type");
-        if (!(cin >> type)) {
+        if (!OurCin::parseInt(OurCin::readLine(), type)) {
             print("invalid_input_1_2");
-            OurCin::clearCin();
             continue;
         }
-        OurCin::clearCin();
 
         if (type == 1 || type == 2) break;
         print("invalid_deposit_choice");
@@ -482,7 +488,7 @@ bool Atm::deposit()
         int cashCount = 0;
         string input;
 
-        if (!insertCash(total, cashCount, input)) {
+        if (insertCash(total, cashCount, input) != CashResult::ok) {
             return true;
         }
 
@@ -505,7 +511,11 @@ bool Atm::deposit()
                 cout << " (" << fee << "원):" << endl;
             }
 
-            if (!insertCash(feeCash, feeCount, inputFee)) {
+            const CashResult feeResult = insertCash(feeCash, feeCount, inputFee);
+            if (feeResult == CashResult::cancelled) {
+                return true;
+            }
+            if (feeResult != CashResult::ok) {
                 cout << (language == "en"
                          ? "Fee payment failed. Deposit cancelled.\n"
                          : "수수료 납부 실패. 입금 취소.\n");
@@ -555,7 +565,11 @@ bool Atm::deposit()
             unsigned long long feeCash = 0;
             int dummy = 0;
             string feeInput;
-            if (!insertCash(feeCash, dummy, feeInput)) {
+            const CashResult feeResult = insertCash(feeCash, dummy, feeInput);
+            if (feeResult == CashResult::cancelled) {
+                return true;
+            }
+            if (feeResult != CashResult::ok) {
                 cout << (language == "en"
                          ? "Fee payment failed. Deposit cancelled.\n"
                          : "수수료 납부 실패. 입금 취소.\n");
@@ -601,15 +615,7 @@ bool Atm::deposit()
         cout << endl;
     }
 
-    print("receipt_prompt");
-    string answer;
-    while (getline(cin, answer)) {
-        answer.erase(0, answer.find_first_not_of(" \t\r\n"));
-        answer.erase(answer.find_last_not_of(" \t\r\n") + 1);
-        if (answer == "yes") { printReceipt(t1); break; }
-        if (answer == "no")  { print("receipt_no"); break; }
-        print("receipt_yesno_retry");
-    }
+    offerReceipt(t1);
     return true;
 }
 
@@ -635,14 +641,12 @@ bool Atm::withdraw()
         return false;
     }
 
-    unsigned long long amount;
+    unsigned long long amount = 0;
     print("withdraw_amount");
-    if (!(cin >> amount)) {
-        OurCin::clearCin();
+    if (!OurCin::parseAmount(OurCin::readLine(), amount)) {
         print("invalid_amount");
         return true;
     }
-    OurCin::clearCin();
 
     if (amount % 1000 != 0 || amount == 0) {
         if (language == "en") {
@@ -695,15 +699,7 @@ bool Atm::withdraw()
 
     print("success");
 
-    print("receipt_prompt");
-    string answer;
-    while (getline(cin, answer)) {
-        answer.erase(0, answer.find_first_not_of(" \t\r\n"));
-        answer.erase(answer.find_last_not_of(" \t\r\n") + 1);
-        if (answer == "yes") { printReceipt(t1); break; }
-        if (answer == "no")  { print("receipt_no"); break; }
-        print("receipt_yesno_retry");
-    }
+    offerReceipt(t1);
     return true;
 }
 
@@ -713,19 +709,16 @@ bool Atm::transfer()
     int type = 0;
     while (true) {
         print("transfer_type");
-        if (!(cin >> type)) {
+        if (!OurCin::parseInt(OurCin::readLine(), type)) {
             print("invalid_input_1_2");
-            OurCin::clearCin();
             continue;
         }
-        OurCin::clearCin();
         if (type == 1 || type == 2) break;
         print("invalid_transfer_choice");
     }
 
     print("transfer_to");
-    string toAccNum;
-    getline(cin, toAccNum);
+    const string toAccNum = OurCin::readLine();
     Account* toAcc = findAccountByNumber(toAccNum);
     if (!toAcc) {
         print("to_not_found");
@@ -742,12 +735,10 @@ bool Atm::transfer()
     unsigned long long amount = 0;
     while (true) {
         print("transfer_amount");
-        if (!(cin >> amount)) {
-            OurCin::clearCin();
+        if (!OurCin::parseAmount(OurCin::readLine(), amount)) {
             print("invalid_amount");
             continue;
         }
-        OurCin::clearCin();
         if (amount == 0) {
             print("invalid_amount");
             continue;
@@ -783,16 +774,18 @@ bool Atm::transfer()
         int cashCount = 0;
         string input;
 
+        // Bills are only added to the ATM once both the amount and the fee are in,
+        // so cancelling at either step returns everything inserted.
+        array<int,4> amountBills{};
         while (true) {
-            if (!insertCash(insertedAmount, cashCount, input)) continue;
+            const CashResult result = insertCash(insertedAmount, cashCount, input);
+            if (result == CashResult::cancelled) return true;
+            if (result != CashResult::ok) continue;
             if (insertedAmount != amount) {
                 print("amount_mismatch");
                 continue;
             }
-            auto amountBills = parseBills(input);
-            for (int i = 0; i < 4; i++) {
-                cashNum[i] += amountBills[i];
-            }
+            amountBills = parseBills(input);
             break;
         }
 
@@ -806,20 +799,24 @@ bool Atm::transfer()
 
         unsigned long long insertedFee = 0;
         string feeInput;
+        array<int,4> feeBills{};
         while (true) {
             int dummy = 0;
-            if (!insertCash(insertedFee, dummy, feeInput)) continue;
+            const CashResult result = insertCash(insertedFee, dummy, feeInput);
+            if (result == CashResult::cancelled) return true;
+            if (result != CashResult::ok) continue;
 
             if (insertedFee != fee) {
                 print("amount_mismatch");
                 continue;
             }
 
-            auto feeBills = parseBills(feeInput);
-            for (int i = 0; i < 4; i++) {
-                cashNum[i] += feeBills[i];
-            }
+            feeBills = parseBills(feeInput);
             break;
+        }
+
+        for (int i = 0; i < 4; i++) {
+            cashNum[i] += amountBills[i] + feeBills[i];
         }
 
         toAcc->deposit(amount);
@@ -868,15 +865,7 @@ bool Atm::transfer()
         cout << endl;
     }
 
-    print("receipt_prompt");
-    string answer;
-    while (getline(cin, answer)) {
-        answer.erase(0, answer.find_first_not_of(" \t\r\n"));
-        answer.erase(answer.find_last_not_of(" \t\r\n") + 1);
-        if (answer == "yes") { printReceipt(t1); break; }
-        if (answer == "no")  { print("receipt_no"); break; }
-        print("receipt_yesno_retry");
-    }
+    offerReceipt(t1);
     return true;
 }
 
@@ -888,12 +877,10 @@ bool Atm::startSession() {
         while (true) {
             cout << "언어 선택 / Choose language (1. English 2. 한국어): ";
             int lang = 0;
-            if (!(cin >> lang)) {
-                OurCin::clearCin();
+            if (!OurCin::parseInt(OurCin::readLine(), lang)) {
                 print("invalid_input_1_2");
                 continue;
             }
-            OurCin::clearCin();
 
             if (lang == 1) {
                 language = "en";
@@ -912,8 +899,7 @@ bool Atm::startSession() {
     }
 
     print("card");
-    string cardNum;
-    getline(cin, cardNum);
+    const string cardNum = OurCin::readLine();
 
     Session::registerSession(make_unique<Session>(nullptr, false, serialNumber));
 
@@ -924,14 +910,10 @@ bool Atm::startSession() {
         return false;
     }
 
-    bool isMulti = dynamic_cast<MultiUnilingual*>(this) != nullptr || dynamic_cast<MultiBilingual*>(this) != nullptr;
-    if (!isMulti) {
-        Bank* accBank = account->getBank();
-        if (!accBank || accBank != primaryBank) {
-            print("card_single");
-            endSession();
-            return false;
-        }
+    if (!acceptsCard(account)) {
+        print("card_single");
+        endSession();
+        return false;
     }
 
     int attempts = 0;
@@ -939,7 +921,7 @@ bool Atm::startSession() {
     bool success = false;
     while (attempts < 3) {
         print("password");
-        getline(cin, pass);
+        pass = OurCin::readLine();
         if (account->getBank()->authorize(cardNum, pass)) {
             success = true;
             break;
@@ -949,25 +931,27 @@ bool Atm::startSession() {
     }
 
     if (!success) {
-        print("wrong_password");
+        print("too_many_attempts");
         endSession();
         return false;
     }
 
-    Session* currentSession = Session::getSessionById(Session::getTotalSessions() - 1);
+    // Checked before the account is attached, so a rejected admin card is not recorded
+    if (account->isItAdmin() && account->getBank() != primaryBank) {
+        if (language == "en") {
+            cout << "Admin account is not allowed on this ATM." << endl;
+        }
+        else {
+            cout << "이 ATM에서는 해당 관리자 계정을 사용할 수 없습니다." << endl;
+        }
+        endSession();
+        return false;
+    }
+
+    Session* currentSession = getCurrentSession();
     currentSession->setAccount(account);
 
     if (account->isItAdmin()) {
-        if (account->getBank() != primaryBank) {
-            if (language == "en") {
-                cout << "Admin account is not allowed on this ATM." << endl;
-            }
-            else {
-                cout << "이 ATM에서는 해당 관리자 계정을 사용할 수 없습니다." << endl;
-            }
-            endSession();
-            return false;
-        }
         currentSession->setAdminMode(true);
         print("admin_activated");
         handleAdmin();
@@ -993,23 +977,15 @@ void Atm::endSession() const {
 void Atm::runMenu() {
     while (true) {
         print("menu");
-        string input;
-        getline(cin, input);
-
-        input.erase(0, input.find_first_not_of(" \t\r\n"));
-        input.erase(input.find_last_not_of(" \t\r\n") + 1);
+        const string input = OurCin::readLine();
 
         if (input == "/") {
             showEverything(banks, atms);
             continue;
         }
 
-        int inp;
-        try {
-            inp = stoi(input);
-        }
-        catch (...)
-        {
+        int inp = 0;
+        if (!OurCin::parseInt(input, inp)) {
             print("menu_error_choice");
             continue;
         }
@@ -1057,13 +1033,11 @@ void Atm::runMenu() {
 void Atm::handleAdmin() const {
     while (true) {
         print("admin_menu");
-        int choice;
-        if (!(cin >> choice)) {
-            OurCin::clearCin();
+        int choice = 0;
+        if (!OurCin::parseInt(OurCin::readLine(), choice)) {
             print("admin_error_input");
             continue;
         }
-        OurCin::clearCin();
 
         if (choice == 1) {
             Transaction::printHistory(language, serialNumber);
@@ -1093,9 +1067,6 @@ void SingleUnilingual::describe() const {
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
 }
 
-bool SingleUnilingual::startSession() {
-    return Atm::startSession();
-}
 
 
 //SingleBilingual
@@ -1108,9 +1079,6 @@ void SingleBilingual::describe() const {
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
 }
 
-bool SingleBilingual::startSession() {
-    return Atm::startSession();
-}
 
 
 //MultiUnilingual
@@ -1125,9 +1093,6 @@ void MultiUnilingual::describe() const {
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
 }
 
-bool MultiUnilingual::startSession() {
-    return Atm::startSession();
-}
 
 
 //MultiBilingual
@@ -1138,8 +1103,4 @@ void MultiBilingual::describe() const {
     cout << "Multi-bank Bilingual ATM." << endl;
     cout << "Serial number: " << serialNumber << endl;
     cout << "Primary bank: " << primaryBank->getBankName() << endl;
-}
-
-bool MultiBilingual::startSession() {
-    return Atm::startSession();
 }

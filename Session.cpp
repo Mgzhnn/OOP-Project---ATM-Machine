@@ -25,10 +25,6 @@ Session* Session::getSessionById(int id) {
 Session::Session(Account *acc, bool admin, string atmSerial) : account(acc), isAdmin(admin), id(nextID++), atmSerial(std::move(atmSerial)) {
 }
 
-Session::~Session() {
-    transactions.clear();
-}
-
 void Session::addTransaction(Transaction* t) {
     transactions.push_back(t);
 }
