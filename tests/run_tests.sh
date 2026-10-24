@@ -10,7 +10,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 "$CXX" -std=c++20 -Wall -Wextra -pedantic -Werror -g -O1 -fsanitize=address,undefined \
-    -fno-omit-frame-pointer -o "$WORK/atm" "$ROOT"/*.cpp || { echo "FAIL: build"; exit 1; }
+    -fno-omit-frame-pointer -o "$WORK/atm" "$ROOT"/src/*.cpp || { echo "FAIL: build"; exit 1; }
 cp "$ROOT/tests/sample.txt" "$WORK/"
 cd "$WORK"
 

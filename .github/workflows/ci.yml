@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure and build with CMake
+        run: |
+          cmake -S . -B build
+          cmake --build build
+
+      - name: Run the scripted end-to-end tests
+        run: tests/run_tests.sh

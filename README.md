@@ -36,7 +36,7 @@ cmake --build build
 ### Option 2: Direct compile (clang++)
 
 ```bash
-clang++ -std=c++20 -Wall -Wextra -pedantic -o OOP_Project_bin *.cpp
+clang++ -std=c++20 -Wall -Wextra -pedantic -o OOP_Project_bin src/*.cpp
 ```
 
 ## Run
@@ -138,14 +138,18 @@ Builds the program with AddressSanitizer and UndefinedBehaviorSanitizer, runs 27
 
 ## Project Structure
 
-- `main.cpp`: application bootstrap, input loading, command loop
-- `Atm.*`: ATM workflow, operations, fees, cash handling
-- `Bank.*`, `Account.*`, `Card.*`: banking domain
-- `Session.*`: session lifecycle and transaction list per session
-- `Transaction.*`: transaction model, history printing/export
-- `Utility.*`: CLI helpers for snapshots and ATM selection
-- `OurCin.*`: input helpers (line reading, strict number parsing, end-of-input handling)
-- `tests/`: scripted end-to-end tests and the sample input
+- `src/`: all C++ sources and headers
+  - `main.cpp`: application bootstrap, input loading, command loop
+  - `Atm.*`: ATM workflow, operations, fees, cash handling
+  - `Bank.*`, `Account.*`, `Card.*`: banking domain
+  - `Session.*`: session lifecycle and transaction list per session
+  - `Transaction.*`: transaction model, history printing/export
+  - `Utility.*`: CLI helpers for snapshots and ATM selection
+  - `OurCin.*`: input helpers (line reading, strict number parsing, end-of-input handling)
+- `tests/`: scripted end-to-end tests (`run_tests.sh`) and the sample input
+- `docs/`: architecture diagram
+- `CMakeLists.txt`: build definition
+- `.github/workflows/ci.yml`: builds with CMake and runs the tests on every push and pull request
 
 ## Recent Quality Fixes
 
@@ -156,4 +160,4 @@ Builds the program with AddressSanitizer and UndefinedBehaviorSanitizer, runs 27
 
 ## License
 
-No license file is currently defined in this repository.
+[MIT](LICENSE)
